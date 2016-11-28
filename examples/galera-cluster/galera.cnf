@@ -1,0 +1,14 @@
+[mysqld]
+explicit_defaults_for_timestamp=true
+binlog_format=ROW
+bind-address=0.0.0.0
+default_storage_engine=innodb
+innodb_autoinc_lock_mode=2
+innodb_flush_log_at_trx_commit=0
+innodb_buffer_pool_size=122M
+wsrep_provider=/usr/lib/libgalera_smm.so
+wsrep_provider_options="gcache.size=300M; gcache.page_size=300M"
+wsrep_cluster_name="galera_cluster"
+wsrep_cluster_address="gcomm://"
+wsrep_sst_auth=user:password
+wsrep_sst_method=rsync

@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  ports:
+  - port: 3306
+    name: db
+  - port: 4444
+    name: sst
+  - port: 4567
+    name: cluster
+  - port: 4568
+    name: ist
+  clusterIP: None
+  selector:
+    app: mysql
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: "mysql"
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: mysql
+        image: galera:5.6
+        ports:
+        - containerPort: 3306
+          name: db
+        - containerPort: 4444
+          name: sst
+        - containerPort: 4567
+          name: cluster
+        - containerPort: 4568
+          name: ist
+        env: 
+          - name: MYSQL_ROOT_PASSWORD
+            value: password
+          - name: MYSQL_DATABASE
+            value: dbname
+          - name: MYSQL_USER
+            value: user
+          - name: MYSQL_PASSWORD
+            value: user_password
+          - name: GALERA_USER
+            value: galera
+          - name: GALERA_PASSWORD
+            value: galera_password
+          - name: GALERA_CLUSTER_NAME
+            value: galera_cluster
+          - name: GALERA_CLUSTER_ADDRESS
+            value: mysql-0.mysql,mysql-1.mysql,mysql-2.mysql
+          - name: GALERA_START_DELAY
+            value: "5"
+        volumeMounts:
+        - name: db
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: db
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+      selector:
+        matchLabels:
+          type: db
