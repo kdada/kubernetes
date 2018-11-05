@@ -325,18 +325,31 @@ type WaitFunc func(done <-chan struct{}) <-chan struct{}
 // ErrWaitTimeout will be returned if the channel is closed without fn ever
 // returning true.
 func WaitFor(wait WaitFunc, fn ConditionFunc, done <-chan struct{}) error {
-	c := wait(done)
+	stopCh := make(chan struct{})
+	once := sync.Once{}
+	closeCh := func() {
+		once.Do(func() {
+			close(stopCh)
+		})
+	}
+	defer closeCh()
+	c := wait(stopCh)
+FOR:
 	for {
-		_, open := <-c
-		ok, err := fn()
-		if err != nil {
-			return err
-		}
-		if ok {
-			return nil
-		}
-		if !open {
-			break
+		select {
+		case _, open := <-c:
+			ok, err := fn()
+			if err != nil {
+				return err
+			}
+			if ok {
+				return nil
+			}
+			if !open {
+				break FOR
+			}
+		case <-done:
+			closeCh()
 		}
 	}
 	return ErrWaitTimeout

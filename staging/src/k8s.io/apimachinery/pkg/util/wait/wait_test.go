@@ -455,18 +455,46 @@ func TestWaitFor(t *testing.T) {
 	}
 }
 
+func TestWaitForWithClosedChannel(t *testing.T) {
+	stopCh := make(chan struct{})
+	close(stopCh)
+	start := time.Now()
+	err := WaitFor(poller(ForeverTestTimeout, ForeverTestTimeout), func() (bool, error) {
+		return false, nil
+	}, stopCh)
+	duration := time.Now().Sub(start)
+	// The WaitFor should returns immediately. So the duration is closed to 0s.
+	// This condition ensures that if the WaitFor returns error caused by poller rather
+	// than stopCh, it will trigger an error.
+	if duration >= ForeverTestTimeout/2 {
+		t.Errorf("expected short timeout duration")
+	}
+	if err != ErrWaitTimeout {
+		t.Errorf("expected ErrWaitTimeout from WaitFunc")
+	}
+}
+
 func TestWaitForWithDelay(t *testing.T) {
-	done := make(chan struct{})
-	defer close(done)
-	WaitFor(poller(time.Millisecond, ForeverTestTimeout), func() (bool, error) {
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	waitFunc := poller(time.Millisecond, ForeverTestTimeout)
+	var doneCh <-chan struct{}
+
+	WaitFor(func(done <-chan struct{}) <-chan struct{} {
+		doneCh = done
+		return waitFunc(done)
+	}, func() (bool, error) {
 		time.Sleep(10 * time.Millisecond)
 		return true, nil
-	}, done)
-	// If polling goroutine doesn't see the done signal it will leak timers.
+	}, stopCh)
+	// The polling goroutine should be closed after WaitFor returning.
 	select {
-	case done <- struct{}{}:
-	case <-time.After(ForeverTestTimeout):
-		t.Errorf("expected an ack of the done signal.")
+	case _, ok := <-doneCh:
+		if ok {
+			t.Errorf("expected closed channel after WaitFunc returning")
+		}
+	default:
+		t.Errorf("expected an ack of the done signal")
 	}
 }
 
