@@ -474,7 +474,7 @@ func TestWaitForWithClosedChannel(t *testing.T) {
 	}
 }
 
-func TestWaitForWithDelay(t *testing.T) {
+func TestInternalChannelOfWaitFor(t *testing.T) {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	waitFunc := poller(time.Millisecond, ForeverTestTimeout)

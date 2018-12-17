@@ -334,7 +334,6 @@ func WaitFor(wait WaitFunc, fn ConditionFunc, done <-chan struct{}) error {
 	}
 	defer closeCh()
 	c := wait(stopCh)
-FOR:
 	for {
 		select {
 		case _, open := <-c:
@@ -346,7 +345,7 @@ FOR:
 				return nil
 			}
 			if !open {
-				break FOR
+				return ErrWaitTimeout
 			}
 		case <-done:
 			closeCh()
